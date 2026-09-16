@@ -38,7 +38,11 @@ export function EvidenceView() {
       cellsWithEvidence: withEvidence.length,
       cellsTotal: assessments.length,
       verified: verified.length, corroborated: corroborated.length, single: single.length,
-      avgAgreement: withEvidence.reduce((a, x) => a + (x.agreement_score ?? 0), 0) / (withEvidence.length || 1),
+      measurable: assessments.filter((a) => a.agreement_score !== null),
+      avgAgreement: (() => {
+        const m = assessments.filter((a) => a.agreement_score !== null);
+        return m.reduce((a, x) => a + (x.agreement_score ?? 0), 0) / (m.length || 1);
+      })(),
     };
   }, [data]);
 
@@ -89,7 +93,8 @@ export function EvidenceView() {
 
         <div className="mt-4 grid grid-cols-2 gap-3">
           <Stat size="sm" label="Observaciones crudas" value={n(evidenceStats.total)} />
-          <Stat size="sm" label="Concordancia media" value={evidenceStats.avgAgreement.toFixed(2)} />
+          <Stat size="sm" label="Concordancia media" value={evidenceStats.avgAgreement.toFixed(2)}
+                sub={`solo las ${n(evidenceStats.measurable.length)} celdas con 2+ observaciones`} />
           <Stat size="sm" label="Celdas con evidencia"
                 value={pct(evidenceStats.cellsWithEvidence / evidenceStats.cellsTotal)}
                 sub={`${n(evidenceStats.cellsWithEvidence)} de ${n(evidenceStats.cellsTotal)}`} />

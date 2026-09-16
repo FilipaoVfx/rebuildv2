@@ -40,13 +40,21 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 
 /* ------------------------------------------------------------- geografía -- */
 // Marco espacial aproximado del área urbana de Pereira (sintético).
-const ORIGIN_LON = -75.7640;
-const ORIGIN_LAT = 4.7690;
+// La extensión se ajusta a la conurbación real (~13 x 8 km) para que la grilla
+// no se derrame sobre suelo rural ni sobre municipios vecinos.
+const ORIGIN_LON = -75.7546;
+const ORIGIN_LAT = 4.7745;
 const COLS = 56;
-const ROWS = 36;
-const LON_STEP = 0.002857;          // ~317 m
-const LAT_STEP = 0.002847;          // ~316 m
-const CELL_AREA_HA = 10.0;          // ~316m x 317m ≈ 10 ha
+const ROWS = 35;
+const LON_STEP = 0.00209;
+const LAT_STEP = 0.00208;
+
+// Dimensiones reales derivadas del paso de grilla, no constantes sueltas.
+const MID_LAT = ORIGIN_LAT + (ROWS * LAT_STEP) / 2;
+const CELL_W_M = LON_STEP * 111320 * Math.cos((MID_LAT * Math.PI) / 180);
+const CELL_H_M = LAT_STEP * 110574;
+const CELL_M = (CELL_W_M + CELL_H_M) / 2;
+const CELL_AREA_HA = (CELL_W_M * CELL_H_M) / 10000;
 
 const cx = (c) => ORIGIN_LON + (c + 0.5) * LON_STEP;
 const cy = (r) => ORIGIN_LAT + (r + 0.5) * LAT_STEP;
@@ -108,7 +116,7 @@ const zoneSeeds = [];
 for (let i = 0; i < ZONE_NAMES.length; i++) {
   let c, r, guard = 0;
   do { c = randInt(3, COLS - 4); r = randInt(3, ROWS - 4); guard++; }
-  while (guard < 200 && (!inCity(c, r) || zoneSeeds.some((s) => Math.hypot(s.c - c, s.r - r) < 7)));
+  while (guard < 200 && (!inCity(c, r) || zoneSeeds.some((s) => Math.hypot(s.c - c, s.r - r) * CELL_M < 2000)));
   zoneSeeds.push({ c, r, id: `Z${String(i + 1).padStart(2, '0')}`, name: ZONE_NAMES[i] });
 }
 const zoneJitter = normalizeField(makeField(14, 0.10));
@@ -166,7 +174,7 @@ for (let r = 0; r < ROWS; r++) {
     const barrio = nearestSeed(inZoneBarrios.length ? inZoneBarrios : barrioSeeds, c, r, 1.4);
 
     const builtDensity = clamp(urban * 0.85 + rand(0, 0.18));
-    const population = Math.round(CELL_AREA_HA * (12 + 108 * Math.pow(builtDensity, 1.45)) * rand(0.8, 1.2));
+    const population = Math.round(CELL_AREA_HA * (16 + 168 * Math.pow(builtDensity, 1.45)) * rand(0.8, 1.2));
     const damage = clamp(fDamage(c, r) * 0.72 + fRisk(c, r) * 0.2 + builtDensity * 0.14 + rand(-0.07, 0.07));
     const risk = clamp(fRisk(c, r) * 0.88 + rand(-0.06, 0.1));
     const vulnerability = clamp(fVuln(c, r) * 0.8 + (1 - urban) * 0.22 + rand(-0.06, 0.06));
@@ -187,7 +195,6 @@ const cellByRC = new Map(cells.map((c) => [`${c.c}:${c.r}`, c]));
 
 /* Equipamiento existente: parques y equipamientos como entidades, no como campo.
    La accesibilidad se calcula por distancia real a la entidad más cercana. */
-const CELL_M = 316;
 const WALK_M_PER_MIN = 75;     // ~4.5 km/h
 const DETOUR = 1.35;           // factor de rodeo sobre distancia euclidiana
 
@@ -199,15 +206,16 @@ const parks = [];
   // bien dotadas y zonas desatendidas, que es justo lo que hay que detectar.
   const shuffled = [...cells].sort(() => rng() - 0.5);
   for (const cell of shuffled) {
-    if (parks.length >= 320) break;
+    if (parks.length >= 130) break;
     const g = fGreen(cell.c, cell.r);
     if (rng() > 0.70 + 0.30 * g) continue;
-    if (parks.some((p) => Math.hypot(p.c - cell.c, p.r - cell.r) < 1.4)) continue;
+    if (parks.some((p) => Math.hypot(p.c - cell.c, p.r - cell.r) * CELL_M < 430)) continue;
     parks.push({
       id: `PK-${String(parks.length + 1).padStart(3, '0')}`,
       name: `${pick(PARK_NAMES)} ${pick(BARRIO_NAMES)}`,
-      c: cell.c, r: cell.r, lon: cell.lon, lat: cell.lat,
-      areaM2: Math.round((2500 + Math.pow(g, 0.8) * 70000 * rand(0.4, 1.7)) / 100) * 100,
+      c: cell.c + rand(-0.5, 0.5), r: cell.r + rand(-0.5, 0.5),
+      lon: 0, lat: 0,
+      areaM2: Math.round((4000 + Math.pow(g, 0.7) * 170000 * rand(0.4, 1.6)) / 100) * 100,
       zoneId: cell.zoneId,
       state: rng() < 0.22 ? 'afectado' : 'operativo',
       source_id: 'SRC-OSM',
@@ -216,9 +224,9 @@ const parks = [];
 }
 
 const EQUIP_KINDS = [
-  { kind: 'salud', label: 'Centro de salud', n: 34, sep: 2.2 },
-  { kind: 'educacion', label: 'Institución educativa', n: 72, sep: 1.5 },
-  { kind: 'abastecimiento', label: 'Equipamiento de abastecimiento', n: 24, sep: 2.6 },
+  { kind: 'salud', label: 'Centro de salud', n: 34, sep: 700 },
+  { kind: 'educacion', label: 'Institución educativa', n: 72, sep: 470 },
+  { kind: 'abastecimiento', label: 'Equipamiento de abastecimiento', n: 24, sep: 820 },
 ];
 const equipments = [];
 for (const ek of EQUIP_KINDS) {
@@ -228,18 +236,26 @@ for (const ek of EQUIP_KINDS) {
     if (n >= ek.n) break;
     const e = fEquip(cell.c, cell.r);
     if (rng() > 0.12 + 0.88 * Math.pow(e, 1.4)) continue;
-    if (equipments.some((x) => x.kind === ek.kind && Math.hypot(x.c - cell.c, x.r - cell.r) < ek.sep)) continue;
+    if (equipments.some((x) => x.kind === ek.kind && Math.hypot(x.c - cell.c, x.r - cell.r) * CELL_M < ek.sep)) continue;
     equipments.push({
       id: `EQ-${String(equipments.length + 1).padStart(3, '0')}`,
       kind: ek.kind, label: ek.label,
       name: `${ek.label} ${pick(BARRIO_NAMES)}`,
-      c: cell.c, r: cell.r, lon: cell.lon, lat: cell.lat,
+      c: cell.c + rand(-0.5, 0.5), r: cell.r + rand(-0.5, 0.5),
+      lon: 0, lat: 0,
       zoneId: cell.zoneId,
       state: rng() < 0.18 ? 'fuera_de_servicio' : 'operativo',
       source_id: 'SRC-OSM',
     });
     n++;
   }
+}
+
+// Coordenadas reales a partir de la posición sub-celda.
+for (const p of [...parks, ...equipments]) {
+  p.lon = Math.round(cx(p.c) * 1e6) / 1e6;
+  p.lat = Math.round(cy(p.r) * 1e6) / 1e6;
+  p.c = r2(p.c); p.r = r2(p.r);
 }
 
 /* Pase 2 — accesibilidad y déficit derivados de las entidades anteriores. */
@@ -379,12 +395,14 @@ for (const cell of cells) {
   }
   const idx = evs.map((e) => DAMAGE_CLASSES.indexOf(e.damage_class));
   const mean = idx.reduce((a, b) => a + b, 0) / idx.length;
+  // Con una sola observación no hay concordancia que medir: decir 1.00 sería
+  // inventar respaldo. Se deja en null y se trata como "fuente única".
   const variance = idx.reduce((a, b) => a + (b - mean) ** 2, 0) / idx.length;
-  const agreement = clamp(1 - variance / 2.4);
+  const agreement = evs.length >= 2 ? clamp(1 - variance / 2.4) : null;
   const sources = new Set(evs.map((e) => e.source_id));
   const verified = evs.some((e) => e.method === 'field_survey');
   const confidence = clamp(
-    0.28 + 0.30 * agreement + 0.22 * Math.min(1, sources.size / 3) +
+    0.28 + 0.30 * (agreement ?? 0.35) + 0.22 * Math.min(1, sources.size / 3) +
     0.12 * Math.min(1, evs.length / 8) + (verified ? 0.12 : 0)
   );
   damageAssessment.push({
@@ -392,7 +410,7 @@ for (const cell of cells) {
     damage_class: DAMAGE_CLASSES[Math.round(mean)],
     evidence_count: evs.length,
     source_count: sources.size,
-    agreement_score: r2(agreement),
+    agreement_score: agreement === null ? null : r2(agreement),
     verification_status: verified ? 'verificado_en_campo' : sources.size >= 2 ? 'corroborado_multifuente' : 'fuente_unica',
     confidence: r2(confidence),
   });
@@ -471,7 +489,7 @@ function chooseIntervention(cell, assess) {
 
 /** Celdas dentro del radio de captación. */
 function catchmentCells(cell, radiusM) {
-  const rad = radiusM / 316;
+  const rad = radiusM / CELL_M;
   const out = [];
   const R = Math.ceil(rad);
   for (let dr = -R; dr <= R; dr++) for (let dc = -R; dc <= R; dc++) {
@@ -517,7 +535,7 @@ const candidates = cells
 const chosen = [];
 for (const cand of candidates) {
   if (chosen.length >= 38) break;
-  if (chosen.some((o) => Math.hypot(o.cell.c - cand.cell.c, o.cell.r - cand.cell.r) < 3.2)) continue;
+  if (chosen.some((o) => Math.hypot(o.cell.c - cand.cell.c, o.cell.r - cand.cell.r) * CELL_M < 950)) continue;
   chosen.push(cand);
 }
 
@@ -656,7 +674,10 @@ const opportunities = chosen.map((cand, idx) => {
     confidence: { value: confidenceValue, level: confidenceLevel,
       drivers: [
         { label: 'Evidencia de daño en el área', value: r2(Math.min(1, catchEvidence / 18)), detail: `${catchEvidence} observaciones en la captación` },
-        { label: 'Concordancia entre fuentes', value: assess?.agreement_score ?? 0, detail: assess ? `${assess.source_count} fuentes, ${assess.verification_status}` : 'sin evidencia directa' },
+        { label: 'Concordancia entre fuentes', value: assess?.agreement_score ?? 0,
+        detail: assess?.agreement_score === null || assess?.agreement_score === undefined
+          ? 'no medible: menos de dos observaciones'
+          : `${assess.source_count} fuentes, ${assess.verification_status}` },
         { label: 'Cobertura normativa (POT)', value: r2(cell.landUseCompat), detail: 'capa POT sintética, sin verificación jurídica' },
       ] },
     evidence: {

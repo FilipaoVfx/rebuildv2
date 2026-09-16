@@ -184,7 +184,11 @@ export function OpportunityDetail({ opp }: { opp: ScoredOpportunity }) {
               </div>
               <div className="mt-1.5 flex justify-between">
                 <span className="text-mute-400">Concordancia entre fuentes</span>
-                <span className="num">{assessment.agreement_score?.toFixed(2)}</span>
+                <span className="num">
+                  {assessment.agreement_score === null
+                    ? <span className="text-mute-500">no medible (1 observación)</span>
+                    : assessment.agreement_score.toFixed(2)}
+                </span>
               </div>
               <div className="mt-1.5 flex justify-between">
                 <span className="text-mute-400">Verificación</span>
