@@ -1,5 +1,7 @@
 # Urban Recovery Intelligence — MVP de producto
 
+**Demo en vivo: https://filipaovfx.github.io/rebuildv2/**
+
 Plataforma de inteligencia territorial para la recuperación urbana de Pereira después
 de un sismo. Este repositorio contiene el **frontend del MVP**, construido con
 **datos sintéticos** para poder diseñar y evaluar la experiencia antes de conectar
@@ -88,19 +90,24 @@ demo la resolución es en cliente y así se declara en la interfaz.
 
 El generador (`scripts/generate-data.mjs`) produce un territorio coherente, no ruido:
 
-- Grilla de **1.352 celdas** de ~317 m sobre el área urbana, con huella irregular.
+- Grilla de **1.314 celdas** de ~232 m ajustada a la conurbación real
+  (~13 × 8 km, 7.006 ha) con huella irregular, y **416.485 habitantes**.
 - **14 comunas** y **52 barrios** por asignación al germen más cercano con borde ruidoso.
 - Campos espaciales suaves (suma de gaussianas) para densidad, daño, riesgo,
   vulnerabilidad y conectividad.
-- **Parques y equipamientos como entidades**: la accesibilidad se calcula por
-  distancia real a la entidad más cercana (75 m/min, factor de rodeo 1,35), y el
+- **130 parques y 130 equipamientos como entidades**, con posición sub-celda para
+  que las distancias no salgan escalonadas. La accesibilidad se calcula por
+  distancia real a la entidad más cercana (75 m/min, factor de rodeo 1,35) y el
   déficit de espacio público por un kernel de decaimiento de 500 m contra la
-  población del entorno.
-- **~1.150 observaciones de daño** muestreadas por rechazo según el campo de daño,
+  población del entorno. Resultado: parque más cercano p10 2,8 → p90 12,2 min;
+  salud p50 12,8 → p90 30 min.
+- **1.150 observaciones de daño** muestreadas por rechazo según el campo de daño,
   con ruido propio de cada método de captura (campo < sensor remoto < reporte
-  ciudadano).
-- **38 oportunidades** con separación mínima, tipo de intervención elegido por
-  percentiles de la brecha dominante y sin repetir intervención dentro de un barrio.
+  ciudadano). La concordancia entre fuentes queda en `null` cuando hay una sola
+  observación: no hay concordancia que medir.
+- **38 oportunidades** con separación mínima de 950 m, tipo de intervención elegido
+  por percentiles de la brecha dominante y sin repetir intervención dentro de un
+  barrio.
 
 Salida en `public/data/`, consultable directamente desde la aplicación y desde el
 navegador. La grilla viaja en formato columnar (no GeoJSON por celda) para mantener
@@ -132,9 +139,19 @@ npm run typecheck
 
 ## Despliegue
 
-GitHub Actions publica `dist/` en GitHub Pages en cada push a la rama de trabajo
-(`.github/workflows/deploy.yml`). La ruta base se define en `vite.config.ts`
-(`/rebuildv2/`) y puede sobreescribirse con `VITE_BASE`.
+En cada push a la rama de trabajo, GitHub Actions regenera los datos, verifica
+tipos, construye y publica `dist/` en la rama `gh-pages`, que es la fuente del
+sitio (`.github/workflows/deploy.yml`).
+
+Se publica por rama y no con el despliegue nativo de Pages porque el
+`GITHUB_TOKEN` del workflow no tiene permiso para *crear* el sitio de Pages
+(`Create Pages site failed: Resource not accessible by integration`), pero sí para
+escribir contenido. Si más adelante se cambia la fuente a "GitHub Actions" en
+Settings → Pages, el workflow puede volver a `upload-pages-artifact` +
+`deploy-pages`.
+
+La ruta base se define en `vite.config.ts` (`/rebuildv2/`) y puede sobreescribirse
+con `VITE_BASE`.
 
 ## Estructura
 
