@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@theme {
+  --color-ink-950: #07090c;
+  --color-ink-900: #0b0e13;
+  --color-ink-850: #10141b;
+  --color-ink-800: #161b24;
+  --color-ink-700: #1e2530;
+  --color-ink-600: #2a3340;
+  --color-ink-500: #3a4553;
+  --color-mute-400: #6b7787;
+  --color-mute-300: #8e9aab;
+  --color-mute-200: #b6c0ce;
+  --color-paper: #e9eef5;
+
+  --color-accent: #f0b429;
+  --color-accent-dim: #8a6516;
+  --color-ok: #34d399;
+  --color-warn: #fbbf24;
+  --color-bad: #f87171;
+
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { -webkit-tap-highlight-color: transparent; }
+
+html, body, #root { height: 100%; }
+
+body {
+  margin: 0;
+  background: var(--color-ink-950);
+  color: var(--color-paper);
+  font-family: var(--font-sans);
+  font-feature-settings: "cv02", "cv03", "cv04", "tnum";
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+}
+
+.num { font-variant-numeric: tabular-nums; }
+
+/* Scrollbars discretas: el foco es el dato, no el cromo. */
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--color-ink-600); border-radius: 99px; border: 3px solid transparent; background-clip: content-box; }
+::-webkit-scrollbar-thumb:hover { background: var(--color-ink-500); background-clip: content-box; }
+
+.maplibregl-ctrl-attrib { font-size: 10px !important; background: rgba(7,9,12,.72) !important; }
+.maplibregl-ctrl-attrib a { color: var(--color-mute-400) !important; }
+.maplibregl-canvas { outline: none; }
+
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+.animate-fade-up { animation: fade-up .22s cubic-bezier(.22,.8,.3,1) both; }
+@keyframes fade-in { from { opacity: 0 } to { opacity: 1 } }
+.animate-fade-in { animation: fade-in .18s ease both; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+}
